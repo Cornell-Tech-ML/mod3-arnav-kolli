@@ -29,11 +29,13 @@ FakeCUDAKernel = Any
 Fn = TypeVar("Fn")
 
 
-def device_jit(fn: Fn, **kwargs) -> Fn:
+def device_jit(fn: Fn, **kwargs: Any) -> Fn:
+    """Compile a function for execution on the CUDA device."""
     return _jit(device=True, **kwargs)(fn)  # type: ignore
 
 
-def jit(fn, **kwargs) -> FakeCUDAKernel:
+def jit(fn: Fn, **kwargs: Any) -> FakeCUDAKernel:
+    """Just-in-time compile a function using Numba's JIT."""
     return _jit(**kwargs)(fn)  # type: ignore
 
 
@@ -67,6 +69,7 @@ class CudaOps(TensorOps):
 
     @staticmethod
     def zip(fn: Callable[[float, float], float]) -> Callable[[Tensor, Tensor], Tensor]:
+        """Apply a function to pairs of elements from two tensors and return a new tensor."""
         cufn: Callable[[float, float], float] = device_jit(fn)
         f = tensor_zip(cufn)
 
@@ -88,6 +91,20 @@ class CudaOps(TensorOps):
     ) -> Callable[[Tensor, int], Tensor]:
         cufn: Callable[[float, float], float] = device_jit(fn)
         f = tensor_reduce(cufn)
+        """Apply a reduction function to a tensor along a dimension.
+
+        Args:
+        ----
+            fn: Callable[[float, float], float]
+                The reduction function to apply
+            start: float
+                The starting value for the reduction
+
+        Returns:
+        -------
+            Callable[[Tensor, int], Tensor]
+                A function that takes a tensor and dimension and returns a new reduced tensor
+        """
 
         def ret(a: Tensor, dim: int) -> Tensor:
             out_shape = list(a.shape)
@@ -173,8 +190,12 @@ def tensor_map(
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         in_index = cuda.local.array(MAX_DIMS, numba.int32)
         i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-        # TODO: Implement for Task 3.3.
-        raise NotImplementedError("Need to implement for Task 3.3")
+        if i < out_size:
+            to_index(i, out_shape, out_index)
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+            out_pos = index_to_position(out_index, out_strides)
+            out[out_pos] = fn(in_storage[index_to_position(in_index, in_strides)])
+
 
     return cuda.jit()(_map)  # type: ignore
 
@@ -216,8 +237,15 @@ def tensor_zip(
         b_index = cuda.local.array(MAX_DIMS, numba.int32)
         i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
 
-        # TODO: Implement for Task 3.3.
-        raise NotImplementedError("Need to implement for Task 3.3")
+        if i < out_size:
+            to_index(i, out_shape, out_index)
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
+            out_pos =  index_to_position(out_index,out_strides)
+            a_pos = index_to_position(a_index, a_strides)
+            b_pos = index_to_position(b_index,b_strides)
+
+            out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
 
     return cuda.jit()(_zip)  # type: ignore
 
