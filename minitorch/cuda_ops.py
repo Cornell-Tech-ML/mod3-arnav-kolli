@@ -304,6 +304,15 @@ jit_sum_practice = cuda.jit()(_sum_practice)
 
 
 def sum_practice(a: Tensor) -> TensorData:
+    """Calculate the sum of elements in a tensor.
+
+    Args:
+        a (Tensor): The input tensor to sum.
+
+    Returns:
+        TensorData: A tensor containing the sum of the input tensor.
+
+    """
     (size,) = a.shape
     threadsperblock = THREADS_PER_BLOCK
     blockspergrid = (size // THREADS_PER_BLOCK) + 1
@@ -346,9 +355,27 @@ def tensor_reduce(
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         out_pos = cuda.blockIdx.x
         pos = cuda.threadIdx.x
+        i = cuda.blockIdx.x *cuda.blockDim + pos
+        # Load data into shared memory
+        if i < out_size:
+            cache[pos] = a_storage[index_to_position(out_index, a_strides)]
+        else:
+            cache[pos] = reduce_value  # Initialize with the reduce value
 
-        # TODO: Implement for Task 3.3.
-        raise NotImplementedError("Need to implement for Task 3.3")
+        cuda.syncthreads()
+
+        # Perform reduction in shared memory
+        stride = 1
+        while stride < cuda.blockDim.x:
+            index = 2 * stride * pos
+            if index < cuda.blockDim.x:
+                cache[index] = fn(cache[index], cache[index + stride])
+            cuda.syncthreads()
+            stride *= 2
+
+        # Write the result from each block to the output array
+        if pos == 0:
+            out[cuda.blockIdx.x] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
