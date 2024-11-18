@@ -1,9 +1,10 @@
+
 """Implementation of the autodifferentiation Functions for Tensor."""
 
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -66,38 +67,36 @@ class Function:
 class Neg(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
-        """Compute element-wise negation of tensor t1.
+        """Computes the forward pass for the negation operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         t1 : Tensor
-            The tensor to be negated element-wise.
+            The input tensor to be negated.
 
         Returns
         -------
-        res : Tensor
-            The negated tensor.
+        Tensor: The negated tensor.
 
         """
         return t1.f.neg_map(t1)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Compute the gradient of element-wise negation of tensor t1.
+        """Computes the backward pass for the negation operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        grad_input : Tensor
-            The gradient of the input.
+        Tensor: The gradient of the input with respect to the output.
 
         """
         return grad_output.f.neg_map(grad_output)
@@ -106,19 +105,18 @@ class Neg(Function):
 class Inv(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
-        """Compute element-wise inverse of tensor t1.
+        """Computes the forward pass for the inversion operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         t1 : Tensor
-            The tensor to be inverted element-wise.
+            The input tensor to be inverted.
 
         Returns
         -------
-        res : Tensor
-            The inverted tensor.
+        Tensor: The inverted tensor.
 
         """
         ctx.save_for_backward(t1)
@@ -126,19 +124,18 @@ class Inv(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Compute the gradient of element-wise inverse of tensor t1.
+        """Computes the backward pass for the inversion operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        grad_input : Tensor
-            The gradient of the input.
+        Tensor: The gradient of the input with respect to the output.
 
         """
         (t1,) = ctx.saved_values
@@ -148,41 +145,38 @@ class Inv(Function):
 class Add(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
-        """Compute the element-wise addition of two tensors.
+        """Computes the forward pass for the addition operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         t1 : Tensor
-            The first tensor.
+            The first input tensor.
         t2 : Tensor
-            The second tensor.
+            The second input tensor.
 
         Returns
         -------
-        res : Tensor
-            The element-wise sum of t1 and t2.
+        Tensor: The result of adding t1 and t2.
 
         """
         return t1.f.add_zip(t1, t2)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        """Compute the gradient of the element-wise addition of two tensors.
+        """Computes the backward pass for the addition operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        Tuple[Tensor, Tensor]
-            The gradients of the inputs, which are the same as the gradient
-            of the output since the derivative of addition is 1.
+        Tuple[Tensor, Tensor]: The gradients of the input tensors with respect to the output.
 
         """
         return grad_output, grad_output
@@ -190,189 +184,166 @@ class Add(Function):
 
 class All(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
-        """Return 1 if all are true"""
+    def forward(ctx: Context, t1: Tensor, dim: Tensor) -> Tensor:
+        """Return 1 if all are true
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        t1 : Tensor
+            The input tensor.
+        dim : Tensor
+            The dimension to reduce.
+
+        Returns
+        -------
+        Tensor: The result of the all operation.
+
+        """
+        ctx.save_for_backward(t1, dim)
         if dim is not None:
-            return a.f.mul_reduce(a, int(dim.item()))
-        else:
-            return a.f.mul_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
+            return t1.f.mul_reduce(t1, int(dim.item()))
 
-
-class Sum(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Optional[Tensor] | None) -> Tensor:
-        """Compute the sum of a tensor's elements.
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, None]:
+        """Computes the backward pass for the all operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
-        a : Tensor
-            The tensor to sum.
-        dim : Optional[Tensor] = None
-            The dimension to sum along. If None, the whole tensor is summed.
-
-        Returns
-        -------
-        Tensor
-            The sum of the elements. If dim is None, then the output is a single number.
-            If dim is not None, then the output is a tensor of the same shape as a, but with the
-            summed dimension removed.
-
-        """
-        ctx.save_for_backward(a.shape, dim)
-        return a.f.add_reduce(a,int(dim.item()))
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        """Backward pass for sum function.
-
-        Parameters
-        ----------
-        ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        grad_a : Tensor
-            The gradient of the input tensor.
-        grad_dim : Tensor
-            The gradient of the dimension.
+        Tuple[Tensor, None]: The gradients of the input tensor with respect to the output.
 
         """
-        a_shape,dim = ctx.saved_values
-        return grad_output,0.0
+        t1, dim = ctx.saved_values
+        return t1.f.zeros_like(t1), None
 
 
 class Mul(Function):
     @staticmethod
-    def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
-        """Forward pass for element-wise multiplication.
+    def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Computes the forward pass for the multiplication operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         t1 : Tensor
-            The first tensor.
+            The first input tensor.
         t2 : Tensor
-            The second tensor.
+            The second input tensor.
 
         Returns
         -------
-        Tensor
-            The element-wise product of t1 and t2.
+        Tensor: The result of multiplying t1 and t2.
 
         """
-        ctx.save_for_backward(t1, t2)
-        return t1.f.mul_zip(t1, t2)
+        ctx.save_for_backward(a, b)
+        return a.f.mul_zip(a, b)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        """Backward pass for element-wise multiplication.
+        """Computes the backward pass for the multiplication operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        grad_t1 : Tensor
-            The gradient of the first tensor.
-        grad_t2 : Tensor
-            The gradient of the second tensor.
+        Tuple[Tensor, Tensor]: The gradients of the input tensors with respect to the output.
 
         """
-        t1, t2 = ctx.saved_values
-        grad_t1 = grad_output.f.mul_zip(grad_output, t2)
-        grad_t2 = grad_output.f.mul_zip(grad_output, t1)
-        return grad_t1, grad_t2
+        a, b = ctx.saved_values
+        return (
+            grad_output.f.mul_zip(b, grad_output),
+            grad_output.f.mul_zip(a, grad_output)
+        )
 
 
 class Sigmoid(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Forward pass for sigmoid.
+    def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Computes the forward pass for the sigmoid operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
-        a : Tensor
+            The context in which the operation is performed.
+        t1 : Tensor
             The input tensor.
 
         Returns
         -------
-        Tensor
-            The sigmoid of the input tensor.
+        Tensor: The result of applying the sigmoid function to t1.
 
         """
-        sig_a = a.f.sigmoid_map(a)
-        ctx.save_for_backward(sig_a)
-        return sig_a
+        ctx.save_for_backward(t1.f.sigmoid_map(t1))
+        return t1.f.sigmoid_map(t1)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Backward pass for sigmoid.
+        """Computes the backward pass for the sigmoid operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        Tensor
-            The gradient of the input.
+        Tensor: The gradient of the input with respect to the output.
 
         """
-        sigmoid_a = ctx.saved_values[0]
-        return sigmoid_a *(-sigmoid_a + 1.0) * grad_output
+        sigma: Tensor = ctx.saved_values[0]
+        return sigma * (-sigma + 1.0) * grad_output
 
 
 class ReLU(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Forward pass for ReLU activation function.
+    def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Computes the forward pass for the ReLU operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
-        a : Tensor
+            The context in which the operation is performed.
+        t1 : Tensor
             The input tensor.
 
         Returns
         -------
-        Tensor
-            The ReLU of the input tensor.
+        Tensor: The result of applying the ReLU function to t1.
 
         """
-        ctx.save_for_backward(a)
-        return a.f.relu_map(a)
+        ctx.save_for_backward(t1)
+        return t1.f.relu_map(t1)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Backward pass for ReLU activation function.
+        """Computes the backward pass for the ReLU operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        Tensor
-            The gradient of the input.
+        Tensor: The gradient of the input with respect to the output.
 
         """
         (a,) = ctx.saved_values
@@ -381,98 +352,135 @@ class ReLU(Function):
 
 class Log(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Forward pass for Log activation function.
+    def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Computes the forward pass for the logarithm operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
-        a : Tensor
+            The context in which the operation is performed.
+        t1 : Tensor
             The input tensor.
 
         Returns
         -------
-        Tensor
-            The log of the input tensor.
+        Tensor: The result of applying the logarithm function to t1.
 
         """
-        ctx.save_for_backward(a)
-        return a.f.log_map(a)
+        ctx.save_for_backward(t1)
+        return t1.f.log_map(t1)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Backward pass for Log activation function.
+        """Computes the backward pass for the logarithm operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        Tensor
-            The gradient of the input.
+        Tensor: The gradient of the input with respect to the output.
 
         """
         (a,) = ctx.saved_values
-        return grad_output.f.log_back_zip(grad_output, Inv.apply(a))
+        return grad_output.f.log_back_zip(a, grad_output)
 
 
 class Exp(Function):
     @staticmethod
-    def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Forward pass for Exp activation function.
+    def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Computes the forward pass for the exponentiation operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
-        a : Tensor
+            The context in which the operation is performed.
+        t1 : Tensor
             The input tensor.
 
         Returns
         -------
-        Tensor
-            The exponential of the input tensor.
+        Tensor: The result of applying the exponentiation function to t1.
 
         """
-        out = a.f.exp_map(a)
-        ctx.save_for_backward(out)
-        return out
+        ctx.save_for_backward(t1.f.exp_map(t1))
+        return t1.f.exp_map(t1)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Backward pass for Exp activation function.
+        """Computes the backward pass for the exponentiation operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        Tensor
-            The gradient of the input.
+        Tensor: The gradient of the input with respect to the output.
 
         """
-        (out,) = ctx.saved_values
-        return grad_output.f.mul_zip(grad_output, out)
+        (a,) = ctx.saved_values
+        return grad_output.f.mul_zip(a, grad_output)
 
 
-class Sub(Function):
+class Sum(Function):
     @staticmethod
-    def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
-        """Forward pass for Sub (t1 - t2).
+    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
+        """Computes the forward pass for the sum operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
+        t1 : Tensor
+            The input tensor.
+        dimT : Tensor
+            The dimensions to sum over.
+
+        Returns
+        -------
+        Tensor: The result of summing the input tensor over the specified dimensions.
+
+        """
+        ctx.save_for_backward(a.shape, dim)
+        return a.f.add_reduce(a, int(dim.item()))
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        """Computes the backward pass for the sum operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        grad_output : Tensor
+            The gradient of the output with respect to the input.
+
+        Returns
+        -------
+        Tensor: The gradient of the input with respect to the output.
+
+        """
+        a_shape, dim = ctx.saved_values
+        return grad_output, 0.0
+
+
+class LT(Function):
+    @staticmethod
+    def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Computes the forward pass for the less-than operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
         t1 : Tensor
             The first input tensor.
         t2 : Tensor
@@ -480,118 +488,138 @@ class Sub(Function):
 
         Returns
         -------
-        Tensor
-            The difference of the two input tensors.
+        Tensor: The result of comparing t1 and t2 element-wise.
 
         """
-        return t1.f.add_zip(t1, -t2)
+        ctx.save_for_backward(a.shape, b.shape)
+        return a.f.lt_zip(a,b)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        """Compute the gradient of the element-wise subtraction of two tensors.
+        """Computes the backward pass for the less-than operation.
 
         Parameters
         ----------
         ctx : Context
-            The context for this computation.
+            The context in which the operation is performed.
         grad_output : Tensor
-            The gradient of the output.
+            The gradient of the output with respect to the input.
 
         Returns
         -------
-        Tuple[Tensor, Tensor]
-            The gradients of the inputs. The gradient of the first input is the
-            same as the gradient of the output, and the gradient of the second
-            input is the negation of the gradient of the output.
+        Tuple[Tensor, Tensor]: The gradients of the input tensors with respect to the output.
 
         """
-        return grad_output, -grad_output
-
-
-class LT(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
-        """Apply the less than function"""
-        ctx.save_for_backward(a.shape, b.shape)
-        return a.f.lt_zip(a, b)
-
-    @staticmethod
-    def backward(ctx: Context, d_output: float) -> tuple[Tensor, Tensor]:
-        """Backward pass for LT"""
-        (a_shape, b_shape) = ctx.saved_values
-
+        # Return zero tensors instead of None
+        a_shape, b_shape = ctx.saved_values
         return zeros(a_shape), zeros(b_shape)
 
 
 class EQ(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
-        """Apply the equal function"""
+        """Computes the forward pass for the equality operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        t1 : Tensor
+            The first input tensor.
+        t2 : Tensor
+            The second input tensor.
+
+        Returns
+        -------
+        Tensor: The result of comparing t1 and t2 element-wise for equality.
+
+        """
         ctx.save_for_backward(a.shape, b.shape)
-        return a.f.eq_zip(a, b)
+        return a.f.eq_zip(a,b)
 
     @staticmethod
-    def backward(ctx: Context, d_output: float) -> tuple[Tensor, Tensor]:
-        """Backward pass for EQ"""
-        (a_shape, b_shape) = ctx.saved_values
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Computes the backward pass for the equality operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        grad_output : Tensor
+            The gradient of the output with respect to the input.
+
+        Returns
+        -------
+        Tuple[Tensor, Tensor]: The gradients of the input tensors with respect to the output.
+
+        """
+        a_shape, b_shape = ctx.saved_values
         return zeros(a_shape), zeros(b_shape)
 
 
 class IsClose(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
-        """Apply the isClose function"""
-        ctx.save_for_backward(a, b)
+        """Computes the forward pass for the is-close operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        t1 : Tensor
+            The first input tensor.
+        t2 : Tensor
+            The second input tensor.
+
+        Returns
+        -------
+        Tensor: The result of comparing t1 and t2 element-wise for closeness.
+
+        """
         return a.f.is_close_zip(a, b)
 
 
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, order: Tensor) -> Tensor:
-        """Permute the dimensions of the tensor.
+        """Computes the forward pass for the permute operation.
 
-        Args:
-        ----
-            ctx: Context
-                The context for this computation.
-            a: Tensor
-                The input tensor to permute.
-            order: Tensor
-                The new ordering of dimensions.
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        t1 : Tensor
+            The input tensor.
+        order : Tensor
+            The permutation order.
 
-        Returns:
+        Returns
         -------
-            Tensor
-                Permuted tensor based on the specified order.
+        Tensor: The permuted tensor.
 
         """
         ctx.save_for_backward(order)
         return a._new(a._tensor.permute(*[int(order[i]) for i in range(order.size)]))
 
     @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
-        """Backward pass for Permute.
-
-        The backward pass for Permute is to permute the gradients according to the
-        original order of the tensor.
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute the backward pass for permuting dimensions.
 
         Args:
         ----
-            ctx: Context
-                The context for this computation.
-            grad_output: Tensor
-                The gradient of the output.
+            ctx (Context): The context containing saved values.
+            grad_output (Tensor): The gradient of the output.
 
         Returns:
         -------
-            The gradient of the input.
+            Tensor: The gradient with respect to the input.
 
         """
-        order = ctx.saved_values[0]
-        order2 = [
+        order: Tensor = ctx.saved_values[0]
+        order2: List[int] = [
             a[0]
             for a in sorted(
-                enumerate([order[i] for i in range(order.size)]),key = lambda a:a[1]
+                enumerate([order[i] for i in range(order.size)]), key = lambda a: a[1]
             )
         ]
         return grad_output._new(grad_output._tensor.permute(*order2)), 0.0
@@ -600,17 +628,20 @@ class Permute(Function):
 class View(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, shape: Tensor) -> Tensor:
-        """Reshape the tensor, must be contiguous.
+        """Computes the forward pass for the view operation.
 
-        Args:
-        ----
-        ctx: Context
-        a: tensor to reshape
-        shape: new shape
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        a : Tensor
+            The input tensor.
+        shape : Tensor
+            The new shape for the tensor.
 
-        Returns:
+        Returns
         -------
-        Reshaped tensor
+        Tensor: The reshaped tensor.
 
         """
         ctx.save_for_backward(a.shape)
@@ -622,7 +653,20 @@ class View(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
-        """Matrix Multiply backward (module 3)"""
+        """Computes the backward pass for the view operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        grad_output : Tensor
+            The gradient of the output with respect to the input.
+
+        Returns
+        -------
+        Tuple[Tensor, float]: The gradient of the input with respect to the output and a float (0.0).
+
+        """
         (original,) = ctx.saved_values
         return (
             minitorch.Tensor.make(
@@ -635,25 +679,79 @@ class View(Function):
 class Copy(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor) -> Tensor:
-        """Id function makes contiguous"""
+        """Computes the forward pass for the copy operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        a : Tensor
+            The input tensor.
+
+        Returns
+        -------
+        Tensor: The copied tensor.
+
+        """
         return a.f.id_map(a)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        """Undo"""
+        """Computes the backward pass for the copy operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        grad_output : Tensor
+            The gradient of the output with respect to the input.
+
+        Returns
+        -------
+        Tensor: The gradient of the input with respect to the output.
+
+        """
         return grad_output
 
 
 class MatMul(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
-        """Matrix Multiply Forward (module 3)"""
+        """Computes the forward pass for the matrix multiplication operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        t1 : Tensor
+            The first input tensor.
+        t2 : Tensor
+            The second input tensor.
+
+        Returns
+        -------
+        Tensor: The result of matrix multiplying t1 and t2.
+
+        """
         ctx.save_for_backward(t1, t2)
         return t1.f.matrix_multiply(t1, t2)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        """Matrix Multiply backward (module 3)"""
+        """Computes the backward pass for the matrix multiplication operation.
+
+        Parameters
+        ----------
+        ctx : Context
+            The context in which the operation is performed.
+        grad_output : Tensor
+            The gradient of the output with respect to the input.
+
+        Returns
+        -------
+        Tuple[Tensor, Tensor]: The gradients of the input tensors with respect to the output.
+
+        """
         t1, t2 = ctx.saved_values
 
         def transpose(a: Tensor) -> Tensor:
@@ -775,20 +873,19 @@ def tensor(
 def grad_central_difference(
     f: Any, *vals: Tensor, arg: int = 0, epsilon: float = 1e-6, ind: UserIndex
 ) -> float:
-    r"""Computes the derivative of function `f` with respect to the `arg`-th argument
-    at the index `ind` using the central difference method.
+    """Compute the central difference gradient for a function.
 
     Args:
     ----
-        f : arbitrary function from n-tensor args to one value
-        *vals : n-tensor values $x_0 \ldots x_{n-1}$
-        arg : the number $i$ of the arg to compute the derivative
-        epsilon : a small constant
-        ind : index to compute the derivative
+        f : function to compute gradient for
+        vals : input tensors
+        arg : argument index to compute gradient for
+        epsilon : small value for central difference
+        ind : index to compute gradient at
 
     Returns:
     -------
-        An approximation of $f'_{i, ind}(x_0, \ldots, x_{n-1})$
+        float : central difference gradient
 
     """
     x = vals[arg]
