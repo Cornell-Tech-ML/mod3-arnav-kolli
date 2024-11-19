@@ -234,9 +234,9 @@ class Mul(Function):
         ----------
         ctx : Context
             The context in which the operation is performed.
-        t1 : Tensor
+        a : Tensor
             The first input tensor.
-        t2 : Tensor
+        b : Tensor
             The second input tensor.
 
         Returns
@@ -481,9 +481,9 @@ class LT(Function):
         ----------
         ctx : Context
             The context in which the operation is performed.
-        t1 : Tensor
+        a : Tensor
             The first input tensor.
-        t2 : Tensor
+        b : Tensor
             The second input tensor.
 
         Returns
@@ -524,9 +524,9 @@ class EQ(Function):
         ----------
         ctx : Context
             The context in which the operation is performed.
-        t1 : Tensor
+        a : Tensor
             The first input tensor.
-        t2 : Tensor
+        b : Tensor
             The second input tensor.
 
         Returns
@@ -566,9 +566,9 @@ class IsClose(Function):
         ----------
         ctx : Context
             The context in which the operation is performed.
-        t1 : Tensor
+        a : Tensor
             The first input tensor.
-        t2 : Tensor
+        b : Tensor
             The second input tensor.
 
         Returns
@@ -588,7 +588,7 @@ class Permute(Function):
         ----------
         ctx : Context
             The context in which the operation is performed.
-        t1 : Tensor
+        a : Tensor
             The input tensor.
         order : Tensor
             The permutation order.
