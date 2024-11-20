@@ -89,22 +89,23 @@ class CudaOps(TensorOps):
     def reduce(
         fn: Callable[[float, float], float], start: float = 0.0
     ) -> Callable[[Tensor, int], Tensor]:
-        cufn: Callable[[float, float], float] = device_jit(fn)
-        f = tensor_reduce(cufn)
-        """Apply a reduction function to a tensor along a dimension.
+        """Apply a reduction function to a tensor along a specified dimension.
 
         Args:
         ----
             fn: Callable[[float, float], float]
-                The reduction function to apply
+                The reduction function to apply.
             start: float
-                The starting value for the reduction
+                The starting value for the reduction.
 
         Returns:
         -------
             Callable[[Tensor, int], Tensor]
-                A function that takes a tensor and dimension and returns a new reduced tensor
+                A function that takes a tensor and dimension and returns a new reduced tensor.
+
         """
+        cufn: Callable[[float, float], float] = device_jit(fn)
+        f = tensor_reduce(cufn)
 
         def ret(a: Tensor, dim: int) -> Tensor:
             out_shape = list(a.shape)
@@ -123,7 +124,18 @@ class CudaOps(TensorOps):
 
     @staticmethod
     def matrix_multiply(a: Tensor, b: Tensor) -> Tensor:
-        # Make these always be a 3 dimensional multiply
+        """Multiply two tensors using CUDA.
+
+        Args:
+        ----
+            a (Tensor): The first tensor to multiply.
+            b (Tensor): The second tensor to multiply.
+
+        Returns:
+        -------
+            Tensor: The result of the matrix multiplication.
+
+        """
         both_2d = 0
         if len(a.shape) == 2:
             a = a.contiguous().view(1, a.shape[0], a.shape[1])
@@ -196,7 +208,6 @@ def tensor_map(
             out_pos = index_to_position(out_index, out_strides)
             out[out_pos] = fn(in_storage[index_to_position(in_index, in_strides)])
 
-
     return cuda.jit()(_map)  # type: ignore
 
 
@@ -241,9 +252,9 @@ def tensor_zip(
             to_index(i, out_shape, out_index)
             broadcast_index(out_index, out_shape, a_shape, a_index)
             broadcast_index(out_index, out_shape, b_shape, b_index)
-            out_pos =  index_to_position(out_index,out_strides)
+            out_pos = index_to_position(out_index, out_strides)
             a_pos = index_to_position(a_index, a_strides)
-            b_pos = index_to_position(b_index,b_strides)
+            b_pos = index_to_position(b_index, b_strides)
 
             out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
 
@@ -291,9 +302,6 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     # Write result for this block to global memory
     if pos == 0:
         out[cuda.blockIdx.x] = cache[0]
-        
-        
-
 
 
 jit_sum_practice = cuda.jit()(_sum_practice)
@@ -303,9 +311,11 @@ def sum_practice(a: Tensor) -> TensorData:
     """Calculate the sum of elements in a tensor.
 
     Args:
+    ----
         a (Tensor): The input tensor to sum.
 
     Returns:
+    -------
         TensorData: A tensor containing the sum of the input tensor.
 
     """
@@ -350,35 +360,35 @@ def tensor_reduce(
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         in_index = cuda.local.array(MAX_DIMS, numba.int32)
-        
+
         # Calculate position
         tid = cuda.threadIdx.x
         bid = cuda.blockIdx.x
-        
+
         # Convert the block index into an index in the output
         to_index(bid, out_shape, out_index)
-        
+
         # Calculate the reduction size for this dimension
         reduce_size = a_shape[reduce_dim]
-        
+
         # Initialize reduction
         local_sum = reduce_value
-        
+
         # Copy out_index to in_index
         for i in range(len(out_index)):
             in_index[i] = out_index[i]
-            
+
         # Each thread reduces multiple elements
         for j in range(tid, reduce_size, BLOCK_DIM):
             in_index[reduce_dim] = j
             pos = index_to_position(in_index, a_strides)
             val = a_storage[pos]
             local_sum = fn(local_sum, val)
-            
+
         # Load partial sum into shared memory
         cache[tid] = local_sum
         cuda.syncthreads()
-        
+
         # Reduce within block
         s = BLOCK_DIM // 2
         while s > 0:
@@ -386,7 +396,7 @@ def tensor_reduce(
                 cache[tid] = fn(cache[tid], cache[tid + s])
             cuda.syncthreads()
             s //= 2
-            
+
         # Write result
         if tid == 0:
             out_pos = index_to_position(out_index, out_strides)
@@ -412,7 +422,7 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     Compute
 
     ```
-     for i: 
+     for i:
          for j:
               for k:
                   out[i, j] += a[i, k] * b[k, j]
@@ -429,7 +439,7 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     BLOCK_DIM = 32
     a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
     b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
-    
+
     # Thread indices
     tx = cuda.threadIdx.x
     ty = cuda.threadIdx.y
@@ -438,9 +448,9 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     if tx < size and ty < size:
         a_shared[ty, tx] = a[ty * size + tx]
         b_shared[ty, tx] = b[ty * size + tx]
-    
+
     cuda.syncthreads()
-    
+
     # Compute output element
     if tx < size and ty < size:
         # Initialize accumulator
@@ -456,6 +466,18 @@ jit_mm_practice = jit(_mm_practice)
 
 
 def mm_practice(a: Tensor, b: Tensor) -> TensorData:
+    """Multiply two tensors using CUDA.
+
+    Args:
+    ----
+        a (Tensor): The first tensor to multiply.
+        b (Tensor): The second tensor to multiply.
+
+    Returns:
+    -------
+        TensorData: A tensor containing the result of the multiplication.
+
+    """
     (size, _) = a.shape
     threadsperblock = (THREADS_PER_BLOCK, THREADS_PER_BLOCK)
     blockspergrid = 1
@@ -519,7 +541,7 @@ def _tensor_matrix_multiply(
     #    c) Compute the dot produce for position c[i, j]
     # TODO: Implement for Task 3.4.
     acc = 0.0
-    
+
     # Move across shared dimension by block dim
     for block in range((a_shape[-1] + BLOCK_DIM - 1) // BLOCK_DIM):
         # Load a tile of A and B into shared memory
@@ -551,9 +573,7 @@ def _tensor_matrix_multiply(
 
     # Write result to global memory
     if i < a_shape[-2] and j < b_shape[-1]:
-        out_pos = (
-            batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
-        )
+        out_pos = batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
         out[out_pos] = acc
 
 

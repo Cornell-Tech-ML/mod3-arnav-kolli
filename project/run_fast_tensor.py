@@ -45,7 +45,7 @@ class Linear(minitorch.Module):
 
     def forward(self, x):
         return (x @ self.weights.value) + self.bias.value
-    
+
 
 
 class FastTrain:
@@ -98,7 +98,7 @@ class FastTrain:
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
                 avg_time = (time.time() - epoch_start_time) / (min(10, epoch + 1))  # Average time per epoch
                 log_fn(epoch, total_loss, correct, losses, avg_time)
-                epoch_start_time = time.time() 
+                epoch_start_time = time.time()
 
 
 if __name__ == "__main__":

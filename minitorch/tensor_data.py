@@ -93,12 +93,13 @@ def broadcast_index(
         None
 
     """
-    for i, s in enumerate( shape) :
+    for i, s in enumerate(shape):
         if s > 1:
-            out_index[i] = big_index[i + (len(big_shape) - len( shape) )]
+            out_index[i] = big_index[i + (len(big_shape) - len(shape))]
         else:
             out_index[i] = 0
     return None
+
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     """Broadcast two shapes to create a new union shape.
@@ -120,20 +121,20 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     a, b = shape1, shape2
     m = max(len(a), len(b))
     c_rev = [0] * m
-    a_rev = list( reversed(a))
-    b_rev = list( reversed (b))
-    for i in range(m): 
+    a_rev = list(reversed(a))
+    b_rev = list(reversed(b))
+    for i in range(m):
         if i >= len(a):
             c_rev[i] = b_rev[i]
         elif i >= len(b):
             c_rev[i] = a_rev[i]
         else:
             c_rev[i] = max(a_rev[i], b_rev[i])
-            if a_rev[i]!= c_rev[i] and a_rev[i] != 1:
+            if a_rev[i] != c_rev[i] and a_rev[i] != 1:
                 raise IndexingError(f"Broadcast failure {a} {b}")
             if b_rev[i] != c_rev[i] and b_rev[i] != 1:
                 raise IndexingError(f"Broadcast failure {a} {b}")
-    return tuple (reversed (c_rev))
+    return tuple(reversed(c_rev))
 
 
 def strides_from_shape(shape: UserShape) -> UserStrides:

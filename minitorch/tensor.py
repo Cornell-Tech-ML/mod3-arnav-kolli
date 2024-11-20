@@ -543,7 +543,7 @@ class Tensor:
 
         """
         if dim is None:
-            return All.apply(self.view(self.size), self._ensure_tensor (0))
+            return All.apply(self.view(self.size), self._ensure_tensor(0))
         else:
             return All.apply(self, self._ensure_tensor(dim))
 
@@ -573,9 +573,10 @@ class Tensor:
 
         """
         if dim is not None:
-            return self.sum(dim) / self.shape [dim]
+            return self.sum(dim) / self.shape[dim]
         else:
             return self.sum() / self.size
+
     def permute(self, *order: int) -> Tensor:
         """Permute the dimensions of the tensor.
 

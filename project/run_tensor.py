@@ -106,7 +106,7 @@ class TensorTrain:
             # Forward
             out = self.model.forward(X).view(data.N)
             prob = (out * y) + (out - 1.0) * (y - 1.0)
-            
+
             epsilon = 1e-7
             loss = -(prob+epsilon).log()
             (loss / data.N).sum().view(1).backward()

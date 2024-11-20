@@ -7,7 +7,6 @@ from numba import prange
 from numba import njit as _njit
 
 from .tensor_data import (
-    MAX_DIMS,
     broadcast_index,
     index_to_position,
     shape_broadcast,
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from typing import Callable, Optional
 
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Shape, Storage, Strides
 
 # TIP: Use `NUMBA_DISABLE_JIT=1 pytest tests/ -m task3_1` to run these tests without JIT.
 
@@ -33,12 +32,14 @@ def njit(fn: Fn, **kwargs: Any) -> Fn:
     """Wrapper for numba njit decorator that ensures inlining is always enabled.
 
     Args:
+    ----
         fn: Function to compile
         kwargs: Additional arguments to pass to njit
 
     Returns:
+    -------
         Compiled function
- 
+
     """
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
@@ -178,29 +179,23 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # Calculate size once
         size = int(np.prod(out_shape))
 
-        
-        # Check if shapes and strides match for direct mapping
+        # Check if shapes and strides match
         stride_aligned = (
-            len(out_shape) == len(in_shape) and     
-            np.array_equal(out_strides, in_strides) and
-            np.array_equal(out_shape, in_shape)
+            len(out_shape) == len(in_shape)
+            and np.array_equal(out_strides, in_strides)
+            and np.array_equal(out_shape, in_shape)
         )
 
         if stride_aligned:
-            # Fast path: direct mapping
             for i in prange(size):
                 out[i] = fn(in_storage[i])
             return
         else:
-        # Slow path: handle broadcasting
-
-            
             for i in prange(size):
-                out_index = np.zeros(len(out_shape), np.int32)
-                in_index = np.zeros(len(in_shape), np.int32)
+                out_index = np.empty(len(out_shape), np.int32)
+                in_index = np.empty(len(in_shape), np.int32)
                 to_index(i, out_shape, out_index)
                 broadcast_index(out_index, out_shape, in_shape, in_index)
                 in_pos = index_to_position(in_index, in_strides)
@@ -245,30 +240,27 @@ def tensor_zip(
         b_strides: Strides,
     ) -> None:
         size = int(np.prod(out_shape))
-        
+
         # Check if all shapes and strides match for direct mapping
         stride_aligned = (
-            len(out_shape) == len(a_shape) and
-            len(out_shape) == len(b_shape) and
-            np.array_equal(out_strides, a_strides) and
-            np.array_equal(out_strides, b_strides) and
-            np.array_equal(out_shape, a_shape) and
-            np.array_equal(out_shape, b_shape)
+            len(out_shape) == len(a_shape)
+            and len(out_shape) == len(b_shape)
+            and np.array_equal(out_strides, a_strides)
+            and np.array_equal(out_strides, b_strides)
+            and np.array_equal(out_shape, a_shape)
+            and np.array_equal(out_shape, b_shape)
         )
 
         if stride_aligned:
-            # Fast path: direct mapping
             for i in prange(size):
                 out[i] = fn(a_storage[i], b_storage[i])
             return
         else:
-            # Slow path: handle broadcasting
 
-            
             for i in prange(size):
-                out_index = np.zeros(len(out_shape), np.int32)
-                a_index = np.zeros(len(a_shape), np.int32)
-                b_index = np.zeros(len(b_shape), np.int32)
+                out_index = np.empty(len(out_shape), np.int32)
+                a_index = np.empty(len(a_shape), np.int32)
+                b_index = np.empty(len(b_shape), np.int32)
                 to_index(i, out_shape, out_index)
                 broadcast_index(out_index, out_shape, a_shape, a_index)
                 broadcast_index(out_index, out_shape, b_shape, b_index)
@@ -276,6 +268,7 @@ def tensor_zip(
                 b_pos = index_to_position(b_index, b_strides)
                 out_pos = index_to_position(out_index, out_strides)
                 out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
+
     return njit(_zip, parallel=True)  # type: ignore
 
 
@@ -311,26 +304,24 @@ def tensor_reduce(
     ) -> None:
         size = int(np.prod(out_shape))
         reduce_size = a_shape[reduce_dim]
-               
+
         for i in prange(size):
-            out_index = np.zeros(len(out_shape), np.int32)
-            in_index = np.zeros(len(a_shape), np.int32)
+            out_index = np.empty(len(out_shape), np.int32)
+            in_index = np.empty(len(a_shape), np.int32)
             to_index(i, out_shape, out_index)
-            
+
             # Copy output index to input index
             for j in range(len(out_index)):
                 in_index[j] = out_index[j]
-            
+
             # Initialize with first value
             out_pos = index_to_position(out_index, out_strides)
 
-            
             # Reduce along dimension
             for j in range(reduce_size):
                 in_index[reduce_dim] = j
                 pos = index_to_position(in_index, a_strides)
                 out[out_pos] = fn(out[out_pos], a_storage[pos])
-            
 
     return njit(_reduce, parallel=True)  # type: ignore
 
