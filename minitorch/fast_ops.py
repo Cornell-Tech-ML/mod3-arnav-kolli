@@ -256,7 +256,6 @@ def tensor_zip(
                 out[i] = fn(a_storage[i], b_storage[i])
             return
         else:
-
             for i in prange(size):
                 out_index = np.empty(len(out_shape), np.int32)
                 a_index = np.empty(len(a_shape), np.int32)
