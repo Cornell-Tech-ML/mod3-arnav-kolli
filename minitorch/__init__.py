@@ -1,3 +1,7 @@
+"""Module provides a collection of tensor operations, autodiff functionalities,
+and various utilities for mathematical computations.
+"""
+
 from .testing import MathTest, MathTestVariable  # type: ignore # noqa: F401,F403
 from .fast_ops import *  # noqa: F401,F403
 from .cuda_ops import *  # noqa: F401,F403
